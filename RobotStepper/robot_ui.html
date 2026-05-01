@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Robot control</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f5f5f5;color:#1a1a1a;padding:24px 16px}
+.app{max-width:820px;margin:0 auto}
+h1{font-size:20px;font-weight:500;margin-bottom:4px}
+.sub{font-size:13px;color:#888;margin-bottom:20px}
+.card{background:#fff;border:0.5px solid #e0e0e0;border-radius:12px;padding:18px 20px;margin-bottom:14px}
+.card-title{font-size:11px;font-weight:500;color:#999;text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px}
+button{padding:8px 16px;border:0.5px solid #d0d0d0;border-radius:8px;background:#fff;font-size:13px;font-weight:500;color:#1a1a1a;cursor:pointer;transition:background .1s}
+button:hover{background:#f0f0f0}
+button:active{transform:scale(0.97)}
+.btn-primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.btn-primary:hover{background:#333}
+.btn-danger{background:#fff0f0;color:#c0392b;border-color:#f5c6c6}
+.btn-danger:hover{background:#ffe0e0}
+.btn-home{background:#f0f7ff;color:#1a6fc4;border-color:#b3d4f5}
+.btn-success{background:#f0fff4;color:#1a7c3e;border-color:#b3e6c8}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.jog-col p{font-size:12px;font-weight:500;color:#555;margin-bottom:8px}
+.jog-row{display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.jog-label{font-size:11px;color:#aaa;width:60px}
+input[type=number]{padding:6px 8px;border:0.5px solid #d0d0d0;border-radius:6px;font-size:13px}
+input[type=text]{padding:7px 10px;border:0.5px solid #d0d0d0;border-radius:6px;font-size:13px}
+.robot-tabs{display:flex;gap:6px;margin-bottom:16px}
+.rtab{padding:8px 20px;border:0.5px solid #e0e0e0;border-radius:8px;background:#fff;font-size:13px;font-weight:500;cursor:pointer;color:#666;transition:all .1s}
+.rtab.r1.active{background:#e6f1fb;color:#0c447c;border-color:#85b7eb}
+.rtab.r2.active{background:#e1f5ee;color:#085041;border-color:#5dcaa5}
+.rtab.both.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.seq-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:10px}
+.seq-table th{text-align:left;font-size:11px;font-weight:500;color:#999;padding:4px 8px;border-bottom:0.5px solid #e0e0e0}
+.seq-table td{padding:5px 6px;border-bottom:0.5px solid #f0f0f0;vertical-align:middle}
+.del-btn{background:none;border:none;color:#ccc;font-size:15px;cursor:pointer;padding:2px 6px;border-radius:4px}
+.del-btn:hover{color:#e74c3c;background:#fff0f0}
+.saved-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid #f0f0f0;font-size:13px}
+.saved-row:last-child{border:none}
+.saved-name{flex:1;font-weight:500}
+.saved-meta{font-size:11px;color:#aaa}
+.tab-bar{display:flex;gap:2px;margin-bottom:14px}
+.tab{padding:7px 16px;border:0.5px solid #e0e0e0;border-radius:8px;background:#fff;font-size:13px;cursor:pointer;color:#666}
+.tab.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.log{background:#1a1a1a;color:#aaffaa;font-family:monospace;font-size:12px;border-radius:8px;padding:12px 14px;min-height:60px;max-height:120px;overflow-y:auto}
+.log-line{margin-bottom:2px}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.dot.r1{background:#378add}
+.dot.r2{background:#1d9e75}
+.dot.both{background:#22c55e}
+.cycles-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px}
+.cycles-row label{color:#666}
+.badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;margin-right:6px}
+.badge-r1{background:#e6f1fb;color:#0c447c}
+.badge-r2{background:#e1f5ee;color:#085041}
+.badge-both{background:#f0f0f0;color:#444}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Bipedal robot fleet</h1>
+  <p class="sub">2 robots — micro-ROS over WiFi</p>
+
+  <div class="robot-tabs">
+    <div class="rtab r1 active" onclick="setRobot(1)">
+      <span class="dot r1"></span>Robot 1
+    </div>
+    <div class="rtab r2" onclick="setRobot(2)">
+      <span class="dot r2"></span>Robot 2
+    </div>
+    <div class="rtab both" onclick="setRobot(0)">
+      <span class="dot both"></span>Both
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">System</div>
+    <div class="btn-row">
+      <button class="btn-home" onclick="send('home')">Home</button>
+      <button class="btn-danger" onclick="send('stop')">Stop</button>
+      <button onclick="send('both:2048')">Full rotation fwd</button>
+      <button onclick="send('both:-2048')">Full rotation back</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Manual jog</div>
+    <div class="grid2">
+      <div class="jog-col">
+        <p>Left hip (M1)</p>
+        <div class="jog-row">
+          <span class="jog-label">2048 steps</span>
+          <button onclick="jog('m1',2048)">Fwd</button>
+          <button onclick="jog('m1',-2048)">Back</button>
+        </div>
+        <div class="jog-row">
+          <span class="jog-label">512 steps</span>
+          <button onclick="jog('m1',512)">Fwd</button>
+          <button onclick="jog('m1',-512)">Back</button>
+        </div>
+        <div class="jog-row">
+          <span class="jog-label">128 steps</span>
+          <button onclick="jog('m1',128)">Fwd</button>
+          <button onclick="jog('m1',-128)">Back</button>
+        </div>
+        <div class="jog-row">
+          <span class="jog-label">Custom</span>
+          <input type="number" id="m1-custom" value="200" style="width:72px">
+          <button onclick="jog('m1',+document.getElementById('m1-custom').value)">Fwd</button>
+          <button onclick="jog('m1',-document.getElementById('m1-custom').value)">Back</button>
+        </div>
+      </div>
+      <div class="jog-col">
+        <p>Right hip (M2)</p>
+        <div class="jog-row">
+          <span class="jog-label">2048 steps</span>
+          <button onclick="jog('m2',2048)">Fwd</button>
+          <button onclick="jog('m2',-2048)">Back</button>
+        </div>
+        <div class="jog-row">
+          <span class="jog-label">512 steps</span>
+          <button onclick="jog('m2',512)">Fwd</button>
+          <button onclick="jog('m2',-512)">Back</button>
+        </div>
+        <div class="jog-row">
+          <span class="jog-label">128 steps</span>
+          <button onclick="jog('m2',128)">Fwd</button>
+          <button onclick="jog('m2',-128)">Back</button>
+        </div>
+        <div class="jog-row">
+          <span class="jog-label">Custom</span>
+          <input type="number" id="m2-custom" value="200" style="width:72px">
+          <button onclick="jog('m2',+document.getElementById('m2-custom').value)">Fwd</button>
+          <button onclick="jog('m2',-document.getElementById('m2-custom').value)">Back</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Sequence programmer</div>
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('build')">Build</div>
+      <div class="tab" onclick="switchTab('saved')">Saved</div>
+    </div>
+
+    <div class="tab-panel active" id="tab-build">
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input type="text" id="seq-name" placeholder="Name (e.g. walk, dance, wave)" style="flex:1">
+      </div>
+      <table class="seq-table">
+        <thead>
+          <tr>
+            <th style="width:30px">#</th>
+            <th>M1 steps</th>
+            <th>M2 steps</th>
+            <th>Pause ms</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="seq-body"></tbody>
+      </table>
+      <div class="btn-row">
+        <button onclick="addStep(0,0,300)">+ Step</button>
+        <button onclick="addPreset('walk')">+ Walk</button>
+        <button onclick="addPreset('rock')">+ Rock</button>
+        <button onclick="addPreset('dance')">+ Dance</button>
+        <button onclick="addPreset('mirror')">+ Mirror dance</button>
+      </div>
+      <div class="cycles-row" style="margin-top:12px">
+        <label>Cycles:</label>
+        <input type="number" id="cycles" value="2" min="1" max="20" style="width:60px">
+        <button class="btn-primary" onclick="runSeq()">Run on selected robot</button>
+        <button class="btn-success" onclick="saveSeq()">Save</button>
+        <button onclick="clearSeq()">Clear</button>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-saved">
+      <div id="saved-list"></div>
+      <p id="no-saved" style="font-size:13px;color:#aaa;padding:10px 0">No saved sequences yet.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Command log</div>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<script>
+let activeRobot = 1;
+let steps = [];
+let saved = JSON.parse(localStorage.getItem('robot_sequences') || '[]');
+
+function setRobot(id) {
+  activeRobot = id;
+  document.querySelectorAll('.rtab').forEach(t => t.classList.remove('active'));
+  const map = {1:0, 2:1, 0:2};
+  document.querySelectorAll('.rtab')[map[id]].classList.add('active');
+  log('Selected: ' + (id === 0 ? 'Both robots' : 'Robot ' + id));
+}
+
+function send(cmd) {
+  fetch('/cmd', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({robot: activeRobot, cmd})
+  }).then(() => {
+    const label = activeRobot === 0 ? 'both' : 'r' + activeRobot;
+    log('[' + label + '] ' + cmd);
+  }).catch(() => log('ERROR: server unreachable'));
+}
+
+function jog(motor, steps) {
+  send('jog:' + motor + ':' + steps);
+}
+
+function log(msg) {
+  const el = document.getElementById('log');
+  const d = document.createElement('div');
+  d.className = 'log-line';
+  d.textContent = new Date().toLocaleTimeString() + '  ' + msg;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) =>
+    t.classList.toggle('active', i === (tab==='build'?0:1)));
+  document.querySelectorAll('.tab-panel').forEach((p,i) =>
+    p.classList.toggle('active', i === (tab==='build'?0:1)));
+  if (tab === 'saved') renderSaved();
+}
+
+function renderTable() {
+  const body = document.getElementById('seq-body');
+  body.innerHTML = '';
+  steps.forEach((s, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:#aaa;font-size:11px">${i+1}</td>
+      <td><input type="number" value="${s.m1}" onchange="steps[${i}].m1=+this.value" style="width:76px;padding:4px 6px;border:0.5px solid #d0d0d0;border-radius:5px;font-size:13px"></td>
+      <td><input type="number" value="${s.m2}" onchange="steps[${i}].m2=+this.value" style="width:76px;padding:4px 6px;border:0.5px solid #d0d0d0;border-radius:5px;font-size:13px"></td>
+      <td><input type="number" value="${s.pause}" onchange="steps[${i}].pause=+this.value" style="width:76px;padding:4px 6px;border:0.5px solid #d0d0d0;border-radius:5px;font-size:13px"></td>
+      <td><button class="del-btn" onclick="removeStep(${i})">x</button></td>`;
+    body.appendChild(tr);
+  });
+}
+
+function addStep(m1=0, m2=0, pause=300) {
+  steps.push({m1, m2, pause});
+  renderTable();
+}
+
+function removeStep(i) { steps.splice(i,1); renderTable(); }
+function clearSeq() { steps=[]; renderTable(); }
+
+function addPreset(type) {
+  if (type==='walk') {
+    [[256,0,300],[0,256,300],[-256,0,300],[0,-256,300]].forEach(s=>addStep(...s));
+  } else if (type==='rock') {
+    [[200,-200,350],[-200,200,350]].forEach(s=>addStep(...s));
+  } else if (type==='dance') {
+    [[400,0,200],[-400,0,200],[0,400,200],[0,-400,200],
+     [300,-300,250],[-300,300,250],[200,200,300],[-200,-200,300]].forEach(s=>addStep(...s));
+  } else if (type==='mirror') {
+    [[400,-400,200],[-400,400,200],[200,-200,300],[-200,200,300],
+     [600,0,150],[-600,0,150],[0,600,150],[0,-600,150]].forEach(s=>addStep(...s));
+  }
+}
+
+function buildSeqString() {
+  return steps.map(s=>`${s.m1},${s.m2},${s.pause}`).join('|');
+}
+
+function runSeq() {
+  if (steps.length===0) { log('No steps to run'); return; }
+  const cycles = parseInt(document.getElementById('cycles').value)||1;
+  send(`seq:${cycles}:${buildSeqString()}`);
+}
+
+function saveSeq() {
+  if (steps.length===0) { log('Nothing to save'); return; }
+  const name = document.getElementById('seq-name').value.trim() || 'Sequence '+(saved.length+1);
+  saved.push({name, steps: JSON.parse(JSON.stringify(steps)), created: new Date().toLocaleString()});
+  localStorage.setItem('robot_sequences', JSON.stringify(saved));
+  log('Saved: '+name);
+  document.getElementById('seq-name').value='';
+}
+
+function renderSaved() {
+  const el = document.getElementById('saved-list');
+  const empty = document.getElementById('no-saved');
+  if (saved.length===0) { el.innerHTML=''; empty.style.display=''; return; }
+  empty.style.display='none';
+  el.innerHTML = saved.map((s,i)=>`
+    <div class="saved-row">
+      <span class="saved-name">${s.name}</span>
+      <span class="saved-meta">${s.steps.length} steps</span>
+      <button onclick="loadSeq(${i})">Load</button>
+      <button class="btn-primary" onclick="runSaved(${i})">Run</button>
+      <button onclick="runSavedAll(${i})" style="background:#f5f5f5">Run both</button>
+      <button class="btn-danger" style="padding:7px 10px" onclick="deleteSaved(${i})">x</button>
+    </div>`).join('');
+}
+
+function loadSeq(i) {
+  steps = JSON.parse(JSON.stringify(saved[i].steps));
+  document.getElementById('seq-name').value = saved[i].name;
+  switchTab('build');
+  renderTable();
+  log('Loaded: '+saved[i].name);
+}
+
+function runSaved(i) {
+  const cycles = parseInt(document.getElementById('cycles').value)||1;
+  const seq = saved[i].steps.map(s=>`${s.m1},${s.m2},${s.pause}`).join('|');
+  send(`seq:${cycles}:${seq}`);
+}
+
+function runSavedAll(i) {
+  const prev = activeRobot;
+  activeRobot = 0;
+  runSaved(i);
+  activeRobot = prev;
+}
+
+function deleteSaved(i) {
+  saved.splice(i,1);
+  localStorage.setItem('robot_sequences', JSON.stringify(saved));
+  renderSaved();
+}
+
+renderTable();
+renderSaved();
+</script>
+</body>
+</html>
